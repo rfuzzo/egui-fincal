@@ -1,3 +1,15 @@
+#[derive(serde::Deserialize, serde::Serialize)]
+//#[serde(default)]
+pub struct FinItem {
+    //date: Date
+    item: String,
+    category: String,
+    price: f32,
+    owner: String,
+    ratio: f32
+}
+
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
@@ -8,6 +20,8 @@ pub struct TemplateApp {
     // this how you opt-out of serialization of a member
     #[serde(skip)]
     value: f32,
+
+    items: Vec<FinItem>,
 }
 
 impl Default for TemplateApp {
@@ -16,6 +30,7 @@ impl Default for TemplateApp {
             // Example stuff:
             label: "Hello World!".to_owned(),
             value: 2.7,
+            items: Vec::new(),
         }
     }
 }
@@ -37,35 +52,42 @@ impl TemplateApp {
 }
 
 impl eframe::App for TemplateApp {
-    /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { label, value } = self;
+        let Self { label, value, items } = self;
 
-        // Examples of how to create different panels and windows.
-        // Pick whichever suits you.
-        // Tip: a good default choice is to just keep the `CentralPanel`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
+        // top (menu) bar
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
             egui::menu::bar(ui, |ui| {
+                // menu bar starting from left
                 ui.menu_button("File", |ui| {
+                    #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
                     if ui.button("Quit").clicked() {
                         _frame.close();
                     }
                 });
+
+                // theme button on right
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
+                    egui::widgets::global_dark_light_mode_switch(ui);
+                    ui.label("Theme: ");
+                });
             });
+
+
         });
 
+        // bottom panel
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            ui.label("Hello World!");
+        });
+
+        // side panel
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
             ui.heading("Side Panel");
+
+            egui::warn_if_debug_build(ui);
 
             ui.horizontal(|ui| {
                 ui.label("Write something: ");
@@ -92,25 +114,55 @@ impl eframe::App for TemplateApp {
             });
         });
 
+        // central panel
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
+            // The central panel the region left after adding TopPanels and SidePanels
+            ui.heading("Central Panel");
 
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
-            egui::warn_if_debug_build(ui);
-        });
+            if ui.button("Add Item").clicked() {
+                let it = FinItem {
+                    item: "a".to_string(),
+                    category: "b".to_string(),
+                    price: 0.0,
+                    owner: "c".to_string(),
+                    ratio: 1.0
+                };
 
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally chose either panels OR windows.");
+                items.insert(0, it);
+            }
+
+            // main grid
+            // headers
+            egui::Grid::new("main_grid").striped(true).show(ui, |ui| {
+
+                // header
+                //ui.label("Date");
+                ui.label("Item");
+                ui.label("Category");
+                ui.label("Price");
+                ui.label("Name");
+                ui.label("Ratio");
+                //ui.label("Total");
+                ui.end_row();
+
+                for row in items {
+                    ui.label(&row.item);
+                    ui.label(&row.category);
+                    ui.label(&row.price.to_string());
+                    ui.label(&row.owner);
+                    ui.label(&row.ratio.to_string());
+                    ui.end_row();
+                }
             });
-        }
+
+
+
+
+        });
+    }
+
+    /// Called by the framework to save state before shutdown.
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
     }
 }
