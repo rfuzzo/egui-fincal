@@ -1,7 +1,7 @@
 [package]
-name = "eframe_template"
+name = "egui-fincal"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = ["rfuzzo <r.fuzzo@gmail.com>"]
 edition = "2021"
 rust-version = "1.65"
 

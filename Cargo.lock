@@ -584,19 +584,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "eframe_template"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "eframe",
- "egui",
- "serde",
- "tracing-subscriber",
- "tracing-wasm",
- "wasm-bindgen-futures",
-]
-
-[[package]]
 name = "egui"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -609,6 +596,19 @@ dependencies = [
  "ron",
  "serde",
  "tracing",
+]
+
+[[package]]
+name = "egui-fincal"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "eframe",
+ "egui",
+ "serde",
+ "tracing-subscriber",
+ "tracing-wasm",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
