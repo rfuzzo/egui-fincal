@@ -6,9 +6,8 @@ pub struct FinItem {
     category: String,
     price: f32,
     owner: String,
-    ratio: f32
+    ratio: f32,
 }
-
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -55,7 +54,11 @@ impl eframe::App for TemplateApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { label, value, items } = self;
+        let Self {
+            label,
+            value,
+            items,
+        } = self;
 
         // top (menu) bar
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -74,8 +77,6 @@ impl eframe::App for TemplateApp {
                     ui.label("Theme: ");
                 });
             });
-
-
         });
 
         // bottom panel
@@ -125,7 +126,7 @@ impl eframe::App for TemplateApp {
                     category: "b".to_string(),
                     price: 0.0,
                     owner: "c".to_string(),
-                    ratio: 1.0
+                    ratio: 1.0,
                 };
 
                 items.insert(0, it);
@@ -134,7 +135,6 @@ impl eframe::App for TemplateApp {
             // main grid
             // headers
             egui::Grid::new("main_grid").striped(true).show(ui, |ui| {
-
                 // header
                 //ui.label("Date");
                 ui.label("Item");
@@ -154,10 +154,6 @@ impl eframe::App for TemplateApp {
                     ui.end_row();
                 }
             });
-
-
-
-
         });
     }
 
