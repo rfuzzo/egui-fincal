@@ -1,3 +1,8 @@
+use std::fs::File;
+use std::io;
+use std::io::BufRead;
+use std::path::Path;
+
 #[derive(serde::Deserialize, serde::Serialize)]
 //#[serde(default)]
 pub struct FinItem {
@@ -50,6 +55,16 @@ impl TemplateApp {
     }
 }
 
+// The output is wrapped in a Result to allow matching on errors
+// Returns an Iterator to the Reader of the lines of the file.
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where
+    P: AsRef<Path>,
+{
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
+}
+
 impl eframe::App for TemplateApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
@@ -65,6 +80,25 @@ impl eframe::App for TemplateApp {
             egui::menu::bar(ui, |ui| {
                 // menu bar starting from left
                 ui.menu_button("File", |ui| {
+                    if ui.button("Import Data").clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("csv", &["csv"])
+                            .set_directory("/")
+                            .pick_file()
+                        {
+                            if let Some(picked_path) = Some(path.display().to_string()) {
+                                if let Ok(lines) = read_lines(picked_path) {
+                                    // Consumes the iterator, returns an (Optional) String
+                                    for line in lines.flatten() {
+                                        // TODO parse and add to items
+                                        println!("{}", line);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if ui.button("Export Data").clicked() {}
+
                     #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
                     if ui.button("Quit").clicked() {
                         _frame.close();
