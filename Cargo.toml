@@ -15,11 +15,11 @@ eframe = { version = "0.20.0", default-features = false, features = [
     "persistence",   # Enable restoring app state when restarting the app.
 ] }
 rfd = "0.10"
-
-# You only need serde if you want app persistence:
 serde = { version = "1", features = ["derive"] }
+chrono =  { version = "0.4.23", features = ["serde"] }
+log = "0.4.17"
 
-# native:
+# natives
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tracing-subscriber = "0.3"
 

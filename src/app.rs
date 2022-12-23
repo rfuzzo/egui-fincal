@@ -1,17 +1,25 @@
+use chrono::{Datelike, NaiveDate};
+use egui::plot::{Bar, BarChart, Legend, Plot, PlotPoint};
+use egui::{Response, Ui, Vec2};
+//use log::warn;
 use std::fs::File;
 use std::io;
 use std::io::BufRead;
 use std::path::Path;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 //#[serde(default)]
 pub struct FinItem {
-    //date: Date
+    date: NaiveDate,
     item: String,
     category: String,
     price: f32,
     owner: String,
     ratio: f32,
+
+    // viewmodel
+    #[serde(skip)]
+    editable: bool,
 }
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -19,22 +27,25 @@ pub struct FinItem {
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct TemplateApp {
     // Example stuff:
-    label: String,
+    items: Vec<FinItem>,
 
+    // computed stuff:
     // this how you opt-out of serialization of a member
     #[serde(skip)]
-    value: f32,
-
-    items: Vec<FinItem>,
+    total: f32,
+    #[serde(skip)]
+    selected_year: i32,
+    #[serde(skip)]
+    selected_month: u32,
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
             items: Vec::new(),
+            total: 0.0,
+            selected_year: 2022,
+            selected_month: 12,
         }
     }
 }
@@ -53,6 +64,30 @@ impl TemplateApp {
 
         Default::default()
     }
+
+    pub fn bar_stacked(ui: &mut Ui, items_in_month: Vec<FinItem>, name: String) -> Response {
+        let mut bars: Vec<Bar> = Vec::new();
+        let mut cnt = 0;
+        for item in items_in_month.iter() {
+            bars.push(Bar::new(cnt as f64, item.price as f64).name(item.date.to_string()));
+            cnt += 1;
+        }
+        let chart = BarChart::new(bars).width(0.7).name(name).vertical();
+
+        Plot::new("Month")
+            //.auto_bounds_x()
+            //.auto_bounds_y()
+            .legend(Legend::default())
+            .allow_boxed_zoom(false)
+            .allow_zoom(true)
+            .allow_double_click_reset(true)
+            .show(ui, |plot_ui| {
+                //v = plot_ui.pointer_coordinate_drag_delta();
+                //pp = plot_ui.pointer_coordinate();
+                plot_ui.bar_chart(chart);
+            })
+            .response
+    }
 }
 
 // The output is wrapped in a Result to allow matching on errors
@@ -70,16 +105,37 @@ impl eframe::App for TemplateApp {
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self {
-            label,
-            value,
             items,
+            total,
+            selected_year,
+            selected_month,
         } = self;
+
+        // logic
+
+        // I want tabs according to the months (year?)
+        // sort by year then months
+        let mut items_in_month: Vec<FinItem> = Vec::new();
+        for item in items.iter() {
+            if item.date.year() == *selected_year && item.date.month() == *selected_month {
+                items_in_month.push(item.clone());
+            }
+        }
+        // to calculate: for each item the calculated value
+        // the monthly total
+        let mut local_total = 0.0;
+        for item in items_in_month.iter() {
+            local_total += item.price;
+        }
+        *total = local_total;
+        // the graphs?
 
         // top (menu) bar
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 // menu bar starting from left
                 ui.menu_button("File", |ui| {
+                    // Import button
                     if ui.button("Import Data").clicked() {
                         if let Some(path) = rfd::FileDialog::new()
                             .add_filter("csv", &["csv"])
@@ -97,8 +153,12 @@ impl eframe::App for TemplateApp {
                             }
                         }
                     }
-                    if ui.button("Export Data").clicked() {}
+                    // Export button
+                    if ui.button("Export Data").clicked() {
+                        // TODO
+                    }
 
+                    // Quit button
                     #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
                     if ui.button("Quit").clicked() {
                         _frame.close();
@@ -114,80 +174,131 @@ impl eframe::App for TemplateApp {
         });
 
         // bottom panel
-        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.label("Hello World!");
-        });
+        egui::TopBottomPanel::bottom("bottom_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                TemplateApp::bar_stacked(ui, items_in_month, selected_month.to_string());
+            });
 
         // side panel
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
+        egui::SidePanel::left("side_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading("Side Panel");
 
-            egui::warn_if_debug_build(ui);
+                egui::warn_if_debug_build(ui);
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
-            });
-
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
-            }
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                // input
                 ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to(
-                        "eframe",
-                        "https://github.com/emilk/egui/tree/master/crates/eframe",
-                    );
-                    ui.label(".");
+                    ui.label("Year: ");
+                    ui.add(egui::Slider::new(selected_year, 2019..=2022));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Year: ");
+                    ui.add(egui::Slider::new(selected_month, 1..=12));
+                });
+
+                // calculated values
+                ui.horizontal(|ui| {
+                    ui.label("Total: ");
+                    ui.label(total.to_string());
+                });
+
+                // graphs
+
+                // dbg
+
+                // ui.horizontal(|ui| {
+                //     ui.label("Write something: ");
+                //     ui.text_edit_singleline(label);
+                // });
+
+                // ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
+                // if ui.button("Increment").clicked() {
+                //     *value += 1.0;
+                // }
+
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label("powered by ");
+                        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
+                        ui.label(" and ");
+                        ui.hyperlink_to(
+                            "eframe",
+                            "https://github.com/emilk/egui/tree/master/crates/eframe",
+                        );
+                        ui.label(".");
+                    });
                 });
             });
-        });
 
         // central panel
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanels and SidePanels
             ui.heading("Central Panel");
 
+            // main panel
+            //egui::ScrollArea::vertical().show(ui, |ui| {
+            // Add item button
             if ui.button("Add Item").clicked() {
-                let it = FinItem {
+                items.push(FinItem {
+                    date: chrono::offset::Local::now().date_naive(),
                     item: "a".to_string(),
                     category: "b".to_string(),
                     price: 0.0,
                     owner: "c".to_string(),
                     ratio: 1.0,
-                };
-
-                items.insert(0, it);
+                    editable: false,
+                });
             }
 
             // main grid
-            // headers
+            //egui::ScrollArea::horizontal().show(ui, |ui| {
             egui::Grid::new("main_grid").striped(true).show(ui, |ui| {
                 // header
-                //ui.label("Date");
+                ui.label("Date");
                 ui.label("Item");
                 ui.label("Category");
                 ui.label("Price");
                 ui.label("Name");
                 ui.label("Ratio");
-                //ui.label("Total");
+                //
+                ui.label("Total");
                 ui.end_row();
 
+                // add items
                 for row in items {
-                    ui.label(&row.item);
-                    ui.label(&row.category);
-                    ui.label(&row.price.to_string());
-                    ui.label(&row.owner);
-                    ui.label(&row.ratio.to_string());
+                    // editable fields
+                    if row.editable {
+                        ui.label(&row.date.to_string()); //TODO
+                        ui.text_edit_singleline(&mut row.item);
+                        ui.text_edit_singleline(&mut row.category);
+                        ui.add(egui::DragValue::new(&mut row.price).speed(0.1));
+                        ui.text_edit_singleline(&mut row.owner);
+                        ui.add(egui::Slider::new(&mut row.ratio, 0.0..=1.0));
+                    } else {
+                        ui.label(&row.date.to_string());
+                        ui.label(&row.item);
+                        ui.label(&row.category);
+                        ui.label(&row.price.to_string());
+                        ui.label(&row.owner);
+                        ui.label(&row.ratio.to_string());
+                    }
+
+                    // calculated values
+                    ui.label((row.price * row.ratio).to_string());
+
+                    // edit button
+                    //ui.add(egui::Separator::default().vertical());
+                    if ui.add(egui::Button::new("Edit")).clicked() {
+                        row.editable = !row.editable;
+                    }
                     ui.end_row();
                 }
             });
+            //});
+            //});
         });
     }
 
@@ -195,4 +306,6 @@ impl eframe::App for TemplateApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
+
+    //
 }
