@@ -647,6 +647,7 @@ dependencies = [
  "eframe",
  "egui",
  "log",
+ "num-traits",
  "rfd",
  "serde",
  "tracing-subscriber",

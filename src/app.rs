@@ -1,6 +1,6 @@
-use chrono::Datelike;
-use egui::plot::{Bar, BarChart, Legend, Plot};
-use egui::{Response, Ui};
+use chrono::{Datelike, Month};
+use egui::plot::{Bar, BarChart, HLine, Legend, Line, Plot, PlotPoints};
+use num_traits::FromPrimitive;
 //use log::warn;
 
 use crate::common::read_lines;
@@ -29,7 +29,7 @@ impl Default for TemplateApp {
             items: Vec::new(),
             total: 0.0,
             selected_year: 2022,
-            selected_month: 12,
+            selected_month: chrono::offset::Local::now().date_naive().month(),
         }
     }
 }
@@ -48,30 +48,6 @@ impl TemplateApp {
 
         Default::default()
     }
-
-    pub fn bar_stacked(ui: &mut Ui, items_in_month: &Vec<FinItem>, name: String) -> Response {
-        let mut bars: Vec<Bar> = Vec::new();
-        let mut cnt = 0;
-        for item in items_in_month.iter() {
-            bars.push(Bar::new(cnt as f64, item.price as f64).name(item.date.to_string()));
-            cnt += 1;
-        }
-        let chart = BarChart::new(bars).width(0.7).name(name).vertical();
-
-        Plot::new("Month")
-            //.auto_bounds_x()
-            //.auto_bounds_y()
-            .legend(Legend::default())
-            .allow_boxed_zoom(false)
-            .allow_zoom(true)
-            .allow_double_click_reset(true)
-            .show(ui, |plot_ui| {
-                //v = plot_ui.pointer_coordinate_drag_delta();
-                //pp = plot_ui.pointer_coordinate();
-                plot_ui.bar_chart(chart);
-            })
-            .response
-    }
 }
 
 impl eframe::App for TemplateApp {
@@ -86,15 +62,31 @@ impl eframe::App for TemplateApp {
         } = self;
 
         // logic
-
-        // I want tabs according to the months (year?)
         // sort by year then months
         let mut items_in_month: Vec<FinItem> = Vec::new();
+        let mut possible_years: Vec<i32> = Vec::new();
+        //let mut possible_months: Vec<u32> = Vec::new();
+
         for item in items.iter() {
-            if item.date.year() == *selected_year && item.date.month() == *selected_month {
+            let year = item.date.year();
+            let month = item.date.month();
+
+            if !possible_years.contains(&year) {
+                possible_years.push(year);
+            }
+
+            // if !possible_months.contains(&month) {
+            //     possible_months.push(month);
+            // }
+
+            if year == *selected_year && month == *selected_month {
                 items_in_month.push(item.clone());
             }
         }
+
+        possible_years.sort();
+        //possible_months.sort();
+
         // to calculate: for each item the calculated value
         // the monthly total
         let mut local_total = 0.0;
@@ -102,7 +94,6 @@ impl eframe::App for TemplateApp {
             local_total += item.price;
         }
         *total = local_total;
-        // the graphs?
 
         // top (menu) bar
         egui::TopBottomPanel::top("top_panel")
@@ -153,18 +144,27 @@ impl eframe::App for TemplateApp {
         egui::SidePanel::left("side_panel")
             .resizable(true)
             .show(ctx, |ui| {
-                ui.heading("Side Panel");
+                ui.heading("Details");
 
                 egui::warn_if_debug_build(ui);
 
                 // input
+                let mut first_year = chrono::offset::Local::now().date_naive().year();
+                let mut last_year = first_year;
+                if possible_years.len() > 0 {
+                    first_year = *possible_years.first().unwrap();
+                    last_year = *possible_years.last().unwrap();
+                }
+
                 ui.horizontal(|ui| {
                     ui.label("Year: ");
-                    ui.add(egui::Slider::new(selected_year, 2019..=2022));
+                    ui.add(egui::Slider::new(selected_year, first_year..=last_year));
                 });
+
+                let month_str = to_name(*selected_month);
                 ui.horizontal(|ui| {
-                    ui.label("Year: ");
-                    ui.add(egui::Slider::new(selected_month, 1..=12));
+                    ui.label("Month: ");
+                    ui.add(egui::Slider::new(selected_month, 1..=12).text(month_str));
                 });
 
                 // calculated values
@@ -175,18 +175,7 @@ impl eframe::App for TemplateApp {
 
                 // graphs
 
-                // dbg
-
-                // ui.horizontal(|ui| {
-                //     ui.label("Write something: ");
-                //     ui.text_edit_singleline(label);
-                // });
-
-                // ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-                // if ui.button("Increment").clicked() {
-                //     *value += 1.0;
-                // }
-
+                // footer
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = 0.0;
@@ -205,15 +194,64 @@ impl eframe::App for TemplateApp {
         // bottom panel
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(true)
-            .min_height(0.0)
+            .min_height(100.0)
             .show(ctx, |ui| {
-                TemplateApp::bar_stacked(ui, &items_in_month, selected_month.to_string());
+                let mut bars: Vec<Bar> = Vec::new();
+                let mut dots: Vec<f64> = Vec::new();
+                let mut cnt = 0;
+                for item in items_in_month.iter() {
+                    bars.push(Bar::new(cnt as f64, item.price as f64).name(item.date.to_string()));
+                    dots.push(item.price as f64);
+                    //total += item.price;
+                    cnt += 1;
+                }
+
+                // Get daily expenses as bars
+                let bar_chart = BarChart::new(bars)
+                    .width(0.7)
+                    .name(to_name(*selected_month))
+                    .vertical();
+
+                // Get daily expenses as line
+                let plot_points: PlotPoints = dots
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &y)| [i as f64, y as f64])
+                    .collect();
+                let line = Line::new(plot_points)
+                    .color(egui::Color32::from_rgb(100, 200, 100))
+                    .name(to_name(*selected_month));
+
+                // Get daily expenses as average line
+                let hline = HLine::new(*total / items_in_month.len() as f32)
+                    .name("Average")
+                    .highlight(true);
+
+                // construct plot
+                let plot = Plot::new("Month")
+                    .reset()
+                    .legend(Legend::default())
+                    .allow_boxed_zoom(false)
+                    .allow_zoom(false)
+                    .allow_drag(false)
+                    .allow_double_click_reset(true)
+                    .auto_bounds_x()
+                    .auto_bounds_y();
+
+                // draw plot
+                plot.show(ui, |plot_ui| {
+                    plot_ui.bar_chart(bar_chart);
+
+                    plot_ui.line(line);
+
+                    plot_ui.hline(hline);
+                });
             });
 
         // central panel
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanels and SidePanels
-            ui.heading("Central Panel");
+            ui.heading(to_name(*selected_month));
 
             // main panel
             egui::ScrollArea::vertical().show(ui, |ui| {
@@ -249,7 +287,7 @@ impl eframe::App for TemplateApp {
                     for mut r in rf {
                         r.price += 1.0;
                     }
-                    for mut row in items {
+                    for mut row in items_in_month {
                         // editable fields
                         if row.editable {
                             ui.label(&row.date.to_string()); //TODO
@@ -286,6 +324,13 @@ impl eframe::App for TemplateApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
+}
 
-    //
+/// Get English name of month for index
+fn to_name(month_idx: u32) -> String {
+    let some_month = Month::from_u32(month_idx);
+    match some_month {
+        Some(month) => month.name().to_owned(),
+        None => "".to_owned(),
+    }
 }
