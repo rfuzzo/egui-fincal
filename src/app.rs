@@ -283,11 +283,8 @@ impl eframe::App for TemplateApp {
                     ui.end_row();
 
                     // add items
-                    let rf = items_in_month.clone();
-                    for mut r in rf {
-                        r.price += 1.0;
-                    }
-                    for mut row in items_in_month {
+                    let mut to_remove: Option<&FinItem> = None;
+                    for row in items.iter_mut().filter(|i| items_in_month.contains(i)) {
                         // editable fields
                         if row.editable {
                             ui.label(&row.date.to_string()); //TODO
@@ -313,7 +310,21 @@ impl eframe::App for TemplateApp {
                         if ui.add(egui::Button::new(edit_button_text)).clicked() {
                             row.editable = !row.editable;
                         }
+                        // delete button
+                        if ui.add(egui::Button::new("Delete")).clicked() {
+                            // get current index
+                            _ = to_remove.insert(row);
+                        }
+
                         ui.end_row();
+                    }
+
+                    // handle delete
+                    if to_remove.is_some() {
+                        let c = to_remove.unwrap().to_owned();
+                        if let Some(pos) = items.iter().position(|x| *x == c) {
+                            items.remove(pos);
+                        }
                     }
                 });
             });

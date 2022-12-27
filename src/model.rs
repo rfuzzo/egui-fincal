@@ -1,6 +1,6 @@
 use chrono::NaiveDate;
 
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Clone, PartialEq)]
 //#[serde(default)]
 pub struct FinItem {
     pub(crate) date: NaiveDate,
