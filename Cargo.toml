@@ -8,6 +8,7 @@ rust-version = "1.65"
 
 [dependencies]
 egui = { version = "0.20" }
+egui_extras = { version = "0.20", features = ["datepicker"] }
 eframe = { version = "0.20", default-features = false, features = [
 #   "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
@@ -19,6 +20,7 @@ serde = { version = "1", features = ["derive"] }
 chrono =  { version = "0.4", features = ["serde"] }
 num-traits = "0.2.15"
 log = "0.4"
+itertools = "0.10.5"
 
 # natives
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

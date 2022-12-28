@@ -1,6 +1,9 @@
 use chrono::{Datelike, Month};
 use egui::plot::{Bar, BarChart, HLine, Legend, Line, Plot, PlotPoints};
+use egui_extras::Column;
+use itertools::Itertools;
 use num_traits::FromPrimitive;
+use std::collections::HashMap;
 //use log::warn;
 
 use crate::common::read_lines;
@@ -61,12 +64,13 @@ impl eframe::App for TemplateApp {
             selected_month,
         } = self;
 
+        ////////////////////////////////
         // logic
+        ////////////////////////////////
+
         // sort by year then months
         let mut items_in_month: Vec<FinItem> = Vec::new();
         let mut possible_years: Vec<i32> = Vec::new();
-        //let mut possible_months: Vec<u32> = Vec::new();
-
         for item in items.iter() {
             let year = item.date.year();
             let month = item.date.month();
@@ -75,26 +79,36 @@ impl eframe::App for TemplateApp {
                 possible_years.push(year);
             }
 
-            // if !possible_months.contains(&month) {
-            //     possible_months.push(month);
-            // }
-
             if year == *selected_year && month == *selected_month {
                 items_in_month.push(item.clone());
             }
         }
-
         possible_years.sort();
-        //possible_months.sort();
 
         // to calculate: for each item the calculated value
-        // the monthly total
-        let mut local_total = 0.0;
+        *total = 0.0;
+        let mut paid_dict: HashMap<&str, (f32, f32)> = HashMap::new();
         for item in items_in_month.iter() {
-            local_total += item.price;
+            // the monthly total
+            *total += item.price;
+            let key = &item.owner.as_str();
+            // the monthly total for each name
+            let partial_price = item.price * item.ratio;
+            if paid_dict.contains_key(key) {
+                paid_dict.entry(key).and_modify(|(v1, v2)| {
+                    *v1 += item.price;
+                    *v2 += partial_price;
+                });
+            } else {
+                paid_dict.entry(key).or_insert((item.price, partial_price));
+            }
         }
-        *total = local_total;
 
+        ////////////////////////////////
+        // Layouts
+        ////////////////////////////////
+
+        ////////////////////////////////
         // top (menu) bar
         egui::TopBottomPanel::top("top_panel")
             .min_height(32.0)
@@ -136,44 +150,86 @@ impl eframe::App for TemplateApp {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
                         egui::widgets::global_dark_light_mode_switch(ui);
                         ui.label("Theme: ");
+                        egui::warn_if_debug_build(ui);
                     });
                 });
             });
 
+        ////////////////////////////////
         // left side panel
         egui::SidePanel::left("side_panel")
             .resizable(true)
             .show(ctx, |ui| {
                 ui.heading("Details");
 
-                egui::warn_if_debug_build(ui);
-
-                // input
-                let mut first_year = chrono::offset::Local::now().date_naive().year();
-                let mut last_year = first_year;
-                if possible_years.len() > 0 {
-                    first_year = *possible_years.first().unwrap();
-                    last_year = *possible_years.last().unwrap();
-                }
-
-                ui.horizontal(|ui| {
-                    ui.label("Year: ");
-                    ui.add(egui::Slider::new(selected_year, first_year..=last_year));
-                });
-
-                let month_str = to_name(*selected_month);
-                ui.horizontal(|ui| {
-                    ui.label("Month: ");
-                    ui.add(egui::Slider::new(selected_month, 1..=12).text(month_str));
+                // inputs
+                ui.group(|ui| {
+                    // year slider
+                    let mut first_year = chrono::offset::Local::now().date_naive().year();
+                    let mut last_year = first_year;
+                    if possible_years.len() > 0 {
+                        first_year = *possible_years.first().unwrap();
+                        last_year = *possible_years.last().unwrap();
+                    }
+                    ui.horizontal(|ui| {
+                        ui.label("Year: ");
+                        ui.add(egui::Slider::new(selected_year, first_year..=last_year));
+                    });
+                    // months slider
+                    let month_str = to_name(*selected_month);
+                    ui.horizontal(|ui| {
+                        ui.label("Month: ");
+                        ui.add(egui::Slider::new(selected_month, 1..=12).text(month_str));
+                    });
                 });
 
                 // calculated values
-                ui.horizontal(|ui| {
-                    ui.label("Total: ");
-                    ui.label(total.to_string());
-                });
+                // individual totals
+                ui.group(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label("Paid this month: ");
+                        egui_extras::TableBuilder::new(ui)
+                            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                            .column(Column::auto()) // name
+                            .column(Column::auto().at_least(40.0).clip(true)) // price
+                            .column(Column::remainder()) // owed
+                            .header(20.0, |mut header| {
+                                header.col(|ui| {
+                                    ui.strong("Name");
+                                });
+                                header.col(|ui| {
+                                    ui.strong("Paid");
+                                });
+                                header.col(|ui| {
+                                    ui.strong("Owed");
+                                });
+                            })
+                            .body(|mut body| {
+                                for key in paid_dict.keys().sorted() {
+                                    body.row(18.0, |mut row| {
+                                        row.col(|ui| {
+                                            ui.label(*key);
+                                        });
+                                        row.col(|ui| {
+                                            ui.label(paid_dict[key].0.to_string());
+                                        });
+                                        row.col(|ui| {
+                                            ui.label(paid_dict[key].1.to_string());
+                                        });
+                                    });
+                                }
+                            });
 
-                // graphs
+                        // view as
+                        // todo
+                        ui.separator();
+                        // total
+                        ui.horizontal(|ui| {
+                            ui.label("Total spent: ");
+                            ui.label(total.to_string());
+                        });
+                    });
+                });
 
                 // footer
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -191,6 +247,7 @@ impl eframe::App for TemplateApp {
                 });
             });
 
+        ////////////////////////////////
         // bottom panel
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(true)
@@ -248,6 +305,7 @@ impl eframe::App for TemplateApp {
                 });
             });
 
+        ////////////////////////////////
         // central panel
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanels and SidePanels
@@ -259,74 +317,130 @@ impl eframe::App for TemplateApp {
                 if ui.button("Add Item").clicked() {
                     items.push(FinItem {
                         date: chrono::offset::Local::now().date_naive(),
-                        item: "a".to_string(),
-                        category: "b".to_string(),
+                        item: "item".to_string(),
+                        category: "category".to_string(),
                         price: 0.0,
-                        owner: "c".to_string(),
-                        ratio: 1.0,
+                        owner: "MB".to_string(),
+                        ratio: 0.5,
                         editable: false,
                     });
                 }
 
                 // main grid
-                //egui::ScrollArea::horizontal().show(ui, |ui| {
-                egui::Grid::new("main_grid").striped(true).show(ui, |ui| {
-                    // header
-                    ui.label("Date");
-                    ui.label("Item");
-                    ui.label("Category");
-                    ui.label("Price");
-                    ui.label("Name");
-                    ui.label("Ratio");
-                    //
-                    ui.label("Total");
-                    ui.end_row();
+                let mut to_remove: Option<&FinItem> = None;
+                egui_extras::TableBuilder::new(ui)
+                    .striped(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    //.column(Column::auto().at_least(40.0).resizable(true).clip(true)) // date
+                    .column(Column::auto()) // date
+                    .column(Column::auto()) // item
+                    .column(Column::auto()) // category
+                    .column(Column::auto()) // price
+                    .column(Column::auto()) // name
+                    .column(Column::auto()) // ratio
+                    .column(Column::auto()) // Total
+                    .column(Column::remainder()) // Options
+                    .header(20.0, |mut header| {
+                        header.col(|ui| {
+                            ui.strong("Date");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Item");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Category");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Price");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Name");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Ratio");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Total");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Options");
+                        });
+                    })
+                    .body(|mut body| {
+                        for row in items.iter_mut().filter(|i| items_in_month.contains(i)) {
+                            body.row(18.0, |mut table_row| {
+                                // editable fields
+                                if row.editable {
+                                    table_row.col(|ui| {
+                                        ui.add(egui_extras::DatePickerButton::new(&mut row.date));
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.text_edit_singleline(&mut row.item);
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.text_edit_singleline(&mut row.category);
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.add(egui::DragValue::new(&mut row.price).speed(0.1));
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.text_edit_singleline(&mut row.owner);
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.add(egui::Slider::new(&mut row.ratio, 0.0..=1.0));
+                                    });
+                                } else {
+                                    table_row.col(|ui| {
+                                        ui.label(&row.date.to_string());
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.label(&row.item);
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.label(&row.category);
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.label(&row.price.to_string());
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.label(&row.owner);
+                                    });
+                                    table_row.col(|ui| {
+                                        ui.label(&row.ratio.to_string());
+                                    });
+                                }
 
-                    // add items
-                    let mut to_remove: Option<&FinItem> = None;
-                    for row in items.iter_mut().filter(|i| items_in_month.contains(i)) {
-                        // editable fields
-                        if row.editable {
-                            ui.label(&row.date.to_string()); //TODO
-                            ui.text_edit_singleline(&mut row.item);
-                            ui.text_edit_singleline(&mut row.category);
-                            ui.add(egui::DragValue::new(&mut row.price).speed(0.1));
-                            ui.text_edit_singleline(&mut row.owner);
-                            ui.add(egui::Slider::new(&mut row.ratio, 0.0..=1.0));
-                        } else {
-                            ui.label(&row.date.to_string());
-                            ui.label(&row.item);
-                            ui.label(&row.category);
-                            ui.label(&row.price.to_string());
-                            ui.label(&row.owner);
-                            ui.label(&row.ratio.to_string());
+                                // calculated values
+                                table_row.col(|ui| {
+                                    ui.label((row.price * row.ratio).to_string());
+                                });
+
+                                // edit button
+                                table_row.col(|ui| {
+                                    let edit_button_text =
+                                        if row.editable { "Stop editing" } else { "Edit" };
+                                    if ui.add(egui::Button::new(edit_button_text)).clicked() {
+                                        row.editable = !row.editable;
+                                    }
+                                    //});
+                                    // delete button
+                                    //table_row.col(|ui| {
+                                    if ui.add(egui::Button::new("Delete")).clicked() {
+                                        // get current index
+                                        _ = to_remove.insert(row);
+                                    }
+                                });
+                            });
                         }
+                    });
 
-                        // calculated values
-                        ui.label((row.price * row.ratio).to_string());
-
-                        // edit button
-                        let edit_button_text = if row.editable { "Stop editing" } else { "Edit" };
-                        if ui.add(egui::Button::new(edit_button_text)).clicked() {
-                            row.editable = !row.editable;
-                        }
-                        // delete button
-                        if ui.add(egui::Button::new("Delete")).clicked() {
-                            // get current index
-                            _ = to_remove.insert(row);
-                        }
-
-                        ui.end_row();
+                // handle delete
+                if to_remove.is_some() {
+                    let c = to_remove.unwrap().to_owned();
+                    if let Some(pos) = items.iter().position(|x| *x == c) {
+                        items.remove(pos);
                     }
-
-                    // handle delete
-                    if to_remove.is_some() {
-                        let c = to_remove.unwrap().to_owned();
-                        if let Some(pos) = items.iter().position(|x| *x == c) {
-                            items.remove(pos);
-                        }
-                    }
-                });
+                }
             });
         });
     }
