@@ -1,12 +1,12 @@
 use chrono::{Datelike, Month};
 use egui::plot::{Bar, BarChart, HLine, Legend, Line, Plot, PlotPoints};
 use egui_extras::Column;
+use futures::executor::block_on;
 use itertools::Itertools;
+use log::warn;
 use num_traits::FromPrimitive;
 use std::collections::HashMap;
-use std::io::{BufRead};
-use futures::executor::block_on;
-use log::warn;
+use std::io::BufRead;
 
 // local modules
 //use crate::common::read_lines;
@@ -123,20 +123,20 @@ impl eframe::App for TemplateApp {
                         if ui.button("Import Data").clicked() {
                             let future = async {
                                 let file_option = rfd::AsyncFileDialog::new()
-                                .add_filter("csv", &["csv"])
+                                    .add_filter("csv", &["csv"])
                                     .set_directory("/")
                                     .pick_file()
                                     .await;
-                                
+
                                 let data = file_option.unwrap().read().await;
                                 let reader = std::io::BufReader::new(data.as_slice());
-                                for line in  reader.lines().flatten() {
+                                for line in reader.lines().flatten() {
                                     // TODO parse and add to items
                                     warn!("{line}");
                                 }
                             };
 
-                           block_on(future);
+                            block_on(future);
                         }
 
                         // Export button
