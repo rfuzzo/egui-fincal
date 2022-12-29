@@ -129,7 +129,7 @@ impl eframe::App for TemplateApp {
                                         // Consumes the iterator, returns an (Optional) String
                                         for line in lines.flatten() {
                                             // TODO parse and add to items
-                                            println!("{}", line);
+                                            println!("{line}");
                                         }
                                     }
                                 }
@@ -168,7 +168,7 @@ impl eframe::App for TemplateApp {
                     // year slider
                     let mut first_year = chrono::offset::Local::now().date_naive().year();
                     let mut last_year = first_year;
-                    if possible_years.len() > 0 {
+                    if !possible_years.is_empty() {
                         first_year = *possible_years.first().unwrap();
                         last_year = *possible_years.last().unwrap();
                     }
@@ -297,12 +297,9 @@ impl eframe::App for TemplateApp {
             .show(ctx, |ui| {
                 let mut bars: Vec<Bar> = Vec::new();
                 let mut dots: Vec<f64> = Vec::new();
-                let mut cnt = 0;
-                for item in items_in_month.iter() {
+                for (cnt, item) in items_in_month.iter().enumerate() {
                     bars.push(Bar::new(cnt as f64, item.price as f64).name(item.date.to_string()));
                     dots.push(item.price as f64);
-                    //total += item.price;
-                    cnt += 1;
                 }
 
                 // Get daily expenses as bars
@@ -315,7 +312,7 @@ impl eframe::App for TemplateApp {
                 let plot_points: PlotPoints = dots
                     .iter()
                     .enumerate()
-                    .map(|(i, &y)| [i as f64, y as f64])
+                    .map(|(i, &y)| [i as f64, y])
                     .collect();
                 let line = Line::new(plot_points)
                     .color(egui::Color32::from_rgb(100, 200, 100))
@@ -477,9 +474,9 @@ impl eframe::App for TemplateApp {
                     });
 
                 // handle delete
-                if to_remove.is_some() {
-                    let c = to_remove.unwrap().to_owned();
-                    if let Some(pos) = items.iter().position(|x| *x == c) {
+                if let Some(c) = to_remove {
+                    let cc = c.to_owned();
+                    if let Some(pos) = items.iter().position(|x| *x == cc) {
                         items.remove(pos);
                     }
                 }
