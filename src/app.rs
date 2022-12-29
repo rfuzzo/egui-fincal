@@ -6,7 +6,6 @@ use itertools::Itertools;
 use log::warn;
 use num_traits::FromPrimitive;
 use std::collections::HashMap;
-use std::io::BufRead;
 
 // local modules
 //use crate::common::read_lines;
@@ -130,9 +129,17 @@ impl eframe::App for TemplateApp {
 
                                 let data = file_option.unwrap().read().await;
                                 let reader = std::io::BufReader::new(data.as_slice());
-                                for line in reader.lines().flatten() {
-                                    // TODO parse and add to items
-                                    warn!("{line}");
+                                let mut rdr = csv::Reader::from_reader(reader);
+                                for (i, result) in rdr.deserialize().enumerate() {
+                                    let record: Result<FinItem, csv::Error> = result;
+                                    match record {
+                                        Ok(item) => {
+                                            items.push(item);
+                                        }
+                                        Err(_) => {
+                                            warn!("Failed to parse line {i}");
+                                        }
+                                    }
                                 }
                             };
 
