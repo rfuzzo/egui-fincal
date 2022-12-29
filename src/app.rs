@@ -4,10 +4,12 @@ use egui_extras::Column;
 use itertools::Itertools;
 use num_traits::FromPrimitive;
 use std::collections::HashMap;
-//use log::warn;
+use std::io::{BufRead};
+use futures::executor::block_on;
+use log::warn;
 
 // local modules
-use crate::common::read_lines;
+//use crate::common::read_lines;
 use crate::model::FinItem;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -119,23 +121,26 @@ impl eframe::App for TemplateApp {
                     ui.menu_button("File", |ui| {
                         // Import button
                         if ui.button("Import Data").clicked() {
-                            if let Some(path) = rfd::FileDialog::new()
+                            let future = async {
+                                let file_option = rfd::AsyncFileDialog::new()
                                 .add_filter("csv", &["csv"])
-                                .set_directory("/")
-                                .pick_file()
-                            {
-                                if let Some(picked_path) = Some(path.display().to_string()) {
-                                    if let Ok(lines) = read_lines(picked_path) {
-                                        // Consumes the iterator, returns an (Optional) String
-                                        for line in lines.flatten() {
-                                            // TODO parse and add to items
-                                            println!("{line}");
-                                        }
-                                    }
+                                    .set_directory("/")
+                                    .pick_file()
+                                    .await;
+                                
+                                let data = file_option.unwrap().read().await;
+                                let reader = std::io::BufReader::new(data.as_slice());
+                                for line in  reader.lines().flatten() {
+                                    // TODO parse and add to items
+                                    warn!("{line}");
                                 }
-                            }
+                            };
+
+                           block_on(future);
                         }
+
                         // Export button
+                        #[cfg(not(target_arch = "wasm32"))] // no File->Export on web pages!
                         if ui.button("Export Data").clicked() {
                             // TODO
                         }

@@ -3,7 +3,7 @@ name = "egui-fincal"
 version = "0.1.0"
 authors = ["rfuzzo <r.fuzzo@gmail.com>"]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.66"
 
 
 [dependencies]
@@ -21,6 +21,7 @@ chrono =  { version = "0.4", features = ["serde"] }
 num-traits = "0.2"
 log = "0.4"
 itertools = "0.10"
+futures = "0.3"
 
 # natives
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
