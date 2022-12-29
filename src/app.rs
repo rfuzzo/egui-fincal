@@ -6,6 +6,7 @@ use num_traits::FromPrimitive;
 use std::collections::HashMap;
 //use log::warn;
 
+// local modules
 use crate::common::read_lines;
 use crate::model::FinItem;
 
@@ -188,23 +189,24 @@ impl eframe::App for TemplateApp {
                 ui.group(|ui| {
                     ui.vertical(|ui| {
                         ui.label("Paid this month: ");
-                        egui_extras::TableBuilder::new(ui)
-                            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                            .column(Column::auto()) // name
-                            .column(Column::auto().at_least(40.0).clip(true)) // price
-                            .column(Column::remainder()) // owed
-                            .header(20.0, |mut header| {
-                                header.col(|ui| {
-                                    ui.strong("Name");
+                        ui.push_id("totals_table", |ui| {
+                            let totals_table = egui_extras::TableBuilder::new(ui)
+                                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                                .column(Column::auto()) // name
+                                .column(Column::auto().at_least(40.0).clip(true)) // price
+                                .column(Column::remainder()) // owed
+                                .header(20.0, |mut header| {
+                                    header.col(|ui| {
+                                        ui.strong("Name");
+                                    });
+                                    header.col(|ui| {
+                                        ui.strong("Paid");
+                                    });
+                                    header.col(|ui| {
+                                        ui.strong("Owed");
+                                    });
                                 });
-                                header.col(|ui| {
-                                    ui.strong("Paid");
-                                });
-                                header.col(|ui| {
-                                    ui.strong("Owed");
-                                });
-                            })
-                            .body(|mut body| {
+                            totals_table.body(|mut body| {
                                 for key in paid_dict.keys().sorted() {
                                     body.row(18.0, |mut row| {
                                         row.col(|ui| {
@@ -219,6 +221,7 @@ impl eframe::App for TemplateApp {
                                     });
                                 }
                             });
+                        });
 
                         // view as
                         // todo
@@ -227,6 +230,45 @@ impl eframe::App for TemplateApp {
                         ui.horizontal(|ui| {
                             ui.label("Total spent: ");
                             ui.label(total.to_string());
+                        });
+                    });
+                });
+
+                // by category
+                ui.group(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label("Spent by category: ");
+                        ui.push_id("category_table", |ui| {
+                            let category_table = egui_extras::TableBuilder::new(ui)
+                                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                                .column(Column::auto()) // name
+                                .column(Column::remainder()) // owed
+                                .header(20.0, |mut header| {
+                                    header.col(|ui| {
+                                        ui.strong("Category");
+                                    });
+                                    header.col(|ui| {
+                                        ui.strong("Paid");
+                                    });
+                                });
+
+                            let category_dict: Vec<(String, f32)> = items_in_month
+                                .iter()
+                                .map(|i| (i.category.to_string(), i.price))
+                                .collect();
+                            category_table.body(|mut body| {
+                                // print categories
+                                for (key, val) in category_dict.iter() {
+                                    body.row(18.0, |mut row| {
+                                        row.col(|ui| {
+                                            ui.label(key);
+                                        });
+                                        row.col(|ui| {
+                                            ui.label(val.to_string());
+                                        });
+                                    });
+                                }
+                            });
                         });
                     });
                 });
