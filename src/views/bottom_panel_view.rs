@@ -1,13 +1,8 @@
 use egui::plot::{Bar, BarChart, HLine, Legend, Line, Plot, PlotPoints};
 
-use crate::{common::to_name, model::FinItem};
+use crate::{common::to_name, model::FinItem, TemplateApp};
 
-pub(crate) fn show(
-    items_in_month: &Vec<FinItem>,
-    selected_month: &mut u32,
-    total: &mut f32,
-    ui: &mut egui::Ui,
-) {
+pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &Vec<FinItem>) {
     let mut bars: Vec<Bar> = Vec::new();
     let mut dots: Vec<f64> = Vec::new();
     for (cnt, item) in items_in_month.iter().enumerate() {
@@ -17,7 +12,7 @@ pub(crate) fn show(
     // Get daily expenses as bars
     let bar_chart = BarChart::new(bars)
         .width(0.7)
-        .name(to_name(*selected_month))
+        .name(to_name(app.selected_month))
         .vertical();
     // Get daily expenses as line
     let plot_points: PlotPoints = dots
@@ -27,9 +22,9 @@ pub(crate) fn show(
         .collect();
     let line = Line::new(plot_points)
         .color(egui::Color32::from_rgb(100, 200, 100))
-        .name(to_name(*selected_month));
+        .name(to_name(app.selected_month));
     // Get daily expenses as average line
-    let hline = HLine::new(*total / items_in_month.len() as f32)
+    let hline = HLine::new(app.total / items_in_month.len() as f32)
         .name("Average")
         .highlight(true);
     // construct plot

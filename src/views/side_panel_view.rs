@@ -4,17 +4,16 @@ use itertools::Itertools;
 
 use crate::common::to_name;
 use crate::model::FinItem;
+use crate::TemplateApp;
 
 use std::collections::HashMap;
 
 pub(crate) fn show(
     ui: &mut egui::Ui,
-    possible_years: Vec<i32>,
-    selected_year: &mut i32,
-    selected_month: &mut u32,
-    paid_dict: HashMap<&str, (f32, f32)>,
-    total: &mut f32,
+    app: &mut TemplateApp,
     items_in_month: &Vec<FinItem>,
+    possible_years: Vec<i32>,
+    paid_dict: HashMap<&str, (f32, f32)>,
 ) {
     ui.heading("Details");
     // inputs
@@ -28,13 +27,16 @@ pub(crate) fn show(
         }
         ui.horizontal(|ui| {
             ui.label("Year: ");
-            ui.add(egui::Slider::new(selected_year, first_year..=last_year));
+            ui.add(egui::Slider::new(
+                &mut app.selected_year,
+                first_year..=last_year,
+            ));
         });
         // months slider
-        let month_str = to_name(*selected_month);
+        let month_str = to_name(app.selected_month);
         ui.horizontal(|ui| {
             ui.label("Month: ");
-            ui.add(egui::Slider::new(selected_month, 1..=12).text(month_str));
+            ui.add(egui::Slider::new(&mut app.selected_month, 1..=12).text(month_str));
         });
     });
     // calculated values
@@ -82,7 +84,7 @@ pub(crate) fn show(
             // total
             ui.horizontal(|ui| {
                 ui.label("Total spent: ");
-                ui.label(total.to_string());
+                ui.label(app.total.to_string());
             });
         });
     });

@@ -1,9 +1,9 @@
 use futures::executor::block_on;
 use log::warn;
 
-use crate::model::FinItem;
+use crate::{model::FinItem, TemplateApp};
 
-pub(crate) fn show(ui: &mut egui::Ui, items: &mut Vec<FinItem>, _frame: &mut eframe::Frame) {
+pub(crate) fn show(ui: &mut egui::Ui, _frame: &mut eframe::Frame, app: &mut TemplateApp) {
     egui::menu::bar(ui, |ui| {
         // menu bar starting from left
         ui.menu_button("File", |ui| {
@@ -23,7 +23,7 @@ pub(crate) fn show(ui: &mut egui::Ui, items: &mut Vec<FinItem>, _frame: &mut efr
                         let record: Result<FinItem, csv::Error> = result;
                         match record {
                             Ok(item) => {
-                                items.push(item);
+                                app.items.push(item);
                             }
                             Err(_) => {
                                 warn!("Failed to parse line {i}");

@@ -1,20 +1,15 @@
 use egui_extras::Column;
 
-use crate::{common::to_name, model::FinItem};
+use crate::{common::to_name, model::FinItem, TemplateApp};
 
-pub(crate) fn show(
-    ui: &mut egui::Ui,
-    selected_month: &mut u32,
-    items: &mut Vec<FinItem>,
-    items_in_month: Vec<FinItem>,
-) {
+pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &Vec<FinItem>) {
     // The central panel the region left after adding TopPanels and SidePanels
-    ui.heading(to_name(*selected_month));
+    ui.heading(to_name(app.selected_month));
     // main panel
     egui::ScrollArea::vertical().show(ui, |ui| {
         // Add item button
         if ui.button("Add Item").clicked() {
-            items.push(FinItem {
+            app.items.push(FinItem {
                 date: chrono::offset::Local::now().date_naive(),
                 item: "item".to_string(),
                 category: "category".to_string(),
@@ -66,7 +61,7 @@ pub(crate) fn show(
                 });
             })
             .body(|mut body| {
-                for row in items.iter_mut().filter(|i| items_in_month.contains(i)) {
+                for row in app.items.iter_mut().filter(|i| items_in_month.contains(i)) {
                     body.row(18.0, |mut table_row| {
                         // editable fields
                         if row.editable {
@@ -136,8 +131,8 @@ pub(crate) fn show(
         // handle delete
         if let Some(c) = to_remove {
             let cc = c.to_owned();
-            if let Some(pos) = items.iter().position(|x| *x == cc) {
-                items.remove(pos);
+            if let Some(pos) = app.items.iter().position(|x| *x == cc) {
+                app.items.remove(pos);
             }
         }
     });

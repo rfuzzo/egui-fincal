@@ -10,16 +10,16 @@ use crate::views;
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct TemplateApp {
     // Example stuff:
-    items: Vec<FinItem>,
+    pub items: Vec<FinItem>,
 
     // computed stuff:
     // this how you opt-out of serialization of a member
     #[serde(skip)]
-    total: f32,
+    pub total: f32,
     #[serde(skip)]
-    selected_year: i32,
+    pub selected_year: i32,
     #[serde(skip)]
-    selected_month: u32,
+    pub selected_month: u32,
 }
 
 impl Default for TemplateApp {
@@ -109,7 +109,7 @@ impl eframe::App for TemplateApp {
         egui::TopBottomPanel::top("top_panel")
             .min_height(32.0)
             .show(ctx, |ui| {
-                views::top_panel_view::show(ui, items, _frame);
+                views::top_panel_view::show(ui, _frame, &mut *self);
             });
 
         ////////////////////////////////
@@ -119,12 +119,10 @@ impl eframe::App for TemplateApp {
             .show(ctx, |ui| {
                 views::side_panel_view::show(
                     ui,
-                    possible_years,
-                    selected_year,
-                    selected_month,
-                    paid_dict,
-                    total,
+                    &mut *self,
                     &items_in_month,
+                    possible_years,
+                    paid_dict,
                 );
             });
 
@@ -134,13 +132,13 @@ impl eframe::App for TemplateApp {
             .resizable(true)
             .min_height(100.0)
             .show(ctx, |ui| {
-                views::bottom_panel_view::show(&items_in_month, selected_month, total, ui);
+                views::bottom_panel_view::show(ui, &mut *self, &items_in_month);
             });
 
         ////////////////////////////////
         // central panel
         egui::CentralPanel::default().show(ctx, |ui| {
-            views::central_panel_view::show(ui, selected_month, items, items_in_month);
+            views::central_panel_view::show(ui, &mut *self, &items_in_month);
         });
     }
 
