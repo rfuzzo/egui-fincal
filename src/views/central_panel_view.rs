@@ -2,7 +2,7 @@ use egui_extras::Column;
 
 use crate::{common::to_name, model::FinItem, TemplateApp};
 
-pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &Vec<FinItem>) {
+pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &[FinItem]) {
     // The central panel the region left after adding TopPanels and SidePanels
     ui.heading(to_name(app.selected_month));
     // main panel

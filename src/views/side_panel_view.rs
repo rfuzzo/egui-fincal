@@ -11,7 +11,7 @@ use std::collections::HashMap;
 pub(crate) fn show(
     ui: &mut egui::Ui,
     app: &mut TemplateApp,
-    items_in_month: &Vec<FinItem>,
+    items_in_month: &[FinItem],
     possible_years: Vec<i32>,
     paid_dict: HashMap<&str, (f32, f32)>,
 ) {
