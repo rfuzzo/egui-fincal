@@ -3,7 +3,7 @@ use log::warn;
 use rfd::FileDialog;
 use std::{
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Write},
+    io::{BufRead, BufReader, LineWriter, Write},
 };
 
 use crate::{model::FinItem, TemplateApp};
@@ -44,9 +44,9 @@ pub(crate) fn show(ui: &mut egui::Ui, _frame: &mut eframe::Frame, app: &mut Temp
 
                 if let Some(path) = some_path {
                     if let Ok(file) = File::create(path.as_path()) {
-                        let mut fw = BufWriter::new(file);
+                        let mut fw = LineWriter::new(file);
                         for i in app.items.iter() {
-                            let str = i.to_string();
+                            let str = format!("{i}\n");
                             match fw.write(str.as_bytes()) {
                                 Ok(_) => {}
                                 Err(e) => warn!("Failed to write line {}", e),
