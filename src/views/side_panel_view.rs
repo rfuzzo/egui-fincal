@@ -105,14 +105,22 @@ pub(crate) fn show(
                             ui.strong("Paid");
                         });
                     });
-
-                let category_dict: Vec<(String, f32)> = items_in_month
+                // order items by category and sum them up
+                // todo
+                let mut data_grouped: Vec<(String, f32)> = Vec::new();
+                for (key, group) in &items_in_month
                     .iter()
                     .map(|i| (i.category.to_string(), i.price))
-                    .collect();
+                    .group_by(|elt| elt.0.to_owned())
+                {
+                    let sum = group.map(|f| f.1).collect::<Vec<f32>>().iter().sum();
+                    data_grouped.push((key, sum));
+                }
+
+                // view table
                 category_table.body(|mut body| {
                     // print categories
-                    for (key, val) in category_dict.iter() {
+                    for (key, val) in data_grouped.iter() {
                         body.row(18.0, |mut row| {
                             row.col(|ui| {
                                 ui.label(key);

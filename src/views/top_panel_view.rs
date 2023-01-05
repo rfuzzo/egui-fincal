@@ -52,8 +52,6 @@ pub(crate) fn show(ui: &mut egui::Ui, _frame: &mut eframe::Frame, app: &mut Temp
                                 Err(e) => warn!("Failed to write line {}", e),
                             }
                         }
-                    } else {
-                        todo!()
                     }
                 }
             }
