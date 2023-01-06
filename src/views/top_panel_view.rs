@@ -1,5 +1,4 @@
 use log::warn;
-use rfd::FileDialog;
 use std::{
     fs::File,
     io::{BufRead, BufReader, LineWriter, Write},
@@ -35,7 +34,7 @@ pub(crate) fn show(ui: &mut egui::Ui, _frame: &mut eframe::Frame, app: &mut Temp
             // Export button
             #[cfg(not(target_arch = "wasm32"))] // no File->Export on web pages!
             if ui.button("Export Data").clicked() {
-                let some_path = FileDialog::new()
+                let some_path = rfd::FileDialog::new()
                     .add_filter("csv", &["csv"])
                     .set_directory("/")
                     .save_file();
