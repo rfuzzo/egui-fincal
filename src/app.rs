@@ -11,6 +11,7 @@ use crate::views;
 pub struct TemplateApp {
     // Example stuff:
     pub items: Vec<FinItem>,
+    pub categories: Vec<String>,
 
     // computed stuff:
     // this how you opt-out of serialization of a member
@@ -20,15 +21,24 @@ pub struct TemplateApp {
     pub selected_year: i32,
     #[serde(skip)]
     pub selected_month: u32,
+    #[serde(skip)]
+    pub owners: Vec<String>,
+    #[serde(skip)]
+    pub owners_compare: (String, String),
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
             items: Vec::new(),
+            categories: vec!["a".to_string(), "b".into(), "c".into()],
+
+            // calculated
             total: 0.0,
-            selected_year: 2022,
+            selected_year: chrono::offset::Local::now().date_naive().year(),
             selected_month: chrono::offset::Local::now().date_naive().month(),
+            owners: Vec::new(),
+            owners_compare: ("None".to_owned(), "None".to_owned()),
         }
     }
 }
@@ -55,9 +65,13 @@ impl eframe::App for TemplateApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self {
             items,
+
+            // calculated
             total,
             selected_year,
             selected_month,
+            owners,
+            ..
         } = self;
 
         ////////////////////////////////
@@ -81,22 +95,35 @@ impl eframe::App for TemplateApp {
         }
         possible_years.sort();
 
+        // select correct year
+        if !possible_years.contains(selected_year) {
+            *selected_year = *possible_years.last().unwrap();
+        }
+
         // to calculate: for each item the calculated value
+        owners.clear();
         *total = 0.0;
-        let mut paid_dict: HashMap<&str, (f32, f32)> = HashMap::new();
+        let mut paid_dict: HashMap<String, (f32, f32)> = HashMap::new();
         for item in items_in_month.iter() {
             // the monthly total
             *total += item.price;
-            let key = &item.owner.as_str();
+            let key = &item.owner;
+            // add to owners dict
+            if !owners.contains(key) {
+                owners.push(key.to_string());
+            }
+
             // the monthly total for each name
             let partial_price = item.price * item.ratio;
-            if paid_dict.contains_key(key) {
-                paid_dict.entry(key).and_modify(|(v1, v2)| {
+            if paid_dict.contains_key(key.as_str()) {
+                paid_dict.entry(key.to_string()).and_modify(|(v1, v2)| {
                     *v1 += item.price;
                     *v2 += partial_price;
                 });
             } else {
-                paid_dict.entry(key).or_insert((item.price, partial_price));
+                paid_dict
+                    .entry(key.to_string())
+                    .or_insert((item.price, partial_price));
             }
         }
 

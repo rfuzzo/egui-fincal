@@ -13,7 +13,7 @@ pub(crate) fn show(
     app: &mut TemplateApp,
     items_in_month: &[FinItem],
     possible_years: Vec<i32>,
-    paid_dict: HashMap<&str, (f32, f32)>,
+    paid_dict: HashMap<String, (f32, f32)>,
 ) {
     ui.heading("Details");
     // inputs
@@ -32,11 +32,19 @@ pub(crate) fn show(
                 first_year..=last_year,
             ));
         });
+
         // months slider
         let month_str = to_name(app.selected_month);
         ui.horizontal(|ui| {
             ui.label("Month: ");
             ui.add(egui::Slider::new(&mut app.selected_month, 1..=12).text(month_str));
+        });
+
+        // categories
+        let mut categories: String = app.categories.join(";");
+        ui.horizontal(|ui| {
+            ui.label("Categories: ");
+            ui.text_edit_singleline(&mut categories);
         });
     });
     // calculated values
@@ -65,11 +73,13 @@ pub(crate) fn show(
                     for key in paid_dict.keys().sorted() {
                         body.row(18.0, |mut row| {
                             row.col(|ui| {
-                                ui.label(*key);
+                                ui.label(key);
                             });
+                            // relative to ratio
                             row.col(|ui| {
                                 ui.label(paid_dict[key].0.to_string());
                             });
+                            // total
                             row.col(|ui| {
                                 ui.label(paid_dict[key].1.to_string());
                             });
@@ -78,14 +88,52 @@ pub(crate) fn show(
                 });
             });
 
-            // view as
-            // todo
             ui.separator();
+
             // total
             ui.horizontal(|ui| {
                 ui.label("Total spent: ");
                 ui.label(app.total.to_string());
             });
+
+            // owed totals
+            if app.owners.len() > 1 {
+                ui.separator();
+
+                if app.owners_compare.0 == "None" || app.owners_compare.1 == "None" {
+                    app.owners_compare = (app.owners[0].to_string(), app.owners[1].to_string());
+                }
+
+                ui.horizontal(|ui| {
+                    // select main
+
+                    egui::ComboBox::from_id_source("Main")
+                        .selected_text(app.owners_compare.0.to_string())
+                        .show_ui(ui, |ui| {
+                            for o in &app.owners {
+                                let oo = o.to_string();
+                                ui.selectable_value(&mut app.owners_compare.0, oo, o);
+                            }
+                        });
+                    // select to compare
+                    egui::ComboBox::from_id_source("Compare")
+                        .selected_text(app.owners_compare.1.to_string())
+                        .show_ui(ui, |ui| {
+                            for o in &app.owners {
+                                let oo = o.to_string();
+                                ui.selectable_value(&mut app.owners_compare.1, oo, o);
+                            }
+                        });
+                });
+
+                let main = paid_dict[app.owners_compare.0.as_str()].1;
+                let compare = paid_dict[app.owners_compare.1.as_str()].1;
+                let owed = compare - main;
+                ui.horizontal(|ui| {
+                    ui.label("Total owed: ");
+                    ui.label(owed.to_string());
+                });
+            }
         });
     });
     // by category
@@ -105,28 +153,36 @@ pub(crate) fn show(
                             ui.strong("Paid");
                         });
                     });
+
                 // order items by category and sum them up
-                // todo
-                let mut data_grouped: Vec<(String, f32)> = Vec::new();
-                for (key, group) in &items_in_month
+                let cat_dict = items_in_month
                     .iter()
-                    .map(|i| (i.category.to_string(), i.price))
-                    .group_by(|elt| elt.0.to_owned())
-                {
-                    let sum = group.map(|f| f.1).collect::<Vec<f32>>().iter().sum();
-                    data_grouped.push((key, sum));
-                }
+                    .map(|i| {
+                        let x = i
+                            .category
+                            .as_ref()
+                            .unwrap_or(&"None".to_string())
+                            .to_string();
+                        (x, i.price)
+                    })
+                    .into_group_map()
+                    .iter()
+                    .map(|(k, v)| {
+                        let result: f32 = v.iter().sum();
+                        (k.to_string(), result)
+                    })
+                    .collect::<HashMap<_, _>>();
 
                 // view table
                 category_table.body(|mut body| {
                     // print categories
-                    for (key, val) in data_grouped.iter() {
+                    for key in cat_dict.keys().sorted() {
                         body.row(18.0, |mut row| {
                             row.col(|ui| {
-                                ui.label(key);
+                                ui.label(key.to_string());
                             });
                             row.col(|ui| {
-                                ui.label(val.to_string());
+                                ui.label(cat_dict[key].to_string());
                             });
                         });
                     }

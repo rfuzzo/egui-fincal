@@ -1,4 +1,3 @@
-use futures::executor::block_on;
 use log::warn;
 use rfd::FileDialog;
 use std::{
@@ -13,25 +12,24 @@ pub(crate) fn show(ui: &mut egui::Ui, _frame: &mut eframe::Frame, app: &mut Temp
         // menu bar starting from left
         ui.menu_button("File", |ui| {
             // Import button
+            #[cfg(not(target_arch = "wasm32"))] // no File->Export on web pages!
             if ui.button("Import Data").clicked() {
-                let future = async {
-                    let file_option = rfd::AsyncFileDialog::new()
-                        .add_filter("csv", &["csv"])
-                        .set_directory("/")
-                        .pick_file()
-                        .await;
+                let file_option = rfd::FileDialog::new()
+                    .add_filter("csv", &["csv"])
+                    .set_directory("/")
+                    .pick_file();
 
-                    let data = file_option.unwrap().read().await;
-                    for (i, line) in BufReader::new(data.as_slice()).lines().enumerate() {
-                        if let Some(item) = parse_line(line) {
-                            app.items.push(item);
-                        } else {
-                            warn!("Failed to parse line {}", i)
+                if let Some(path) = file_option {
+                    if let Ok(file) = File::open(path.as_path()) {
+                        for (i, line) in BufReader::new(file).lines().enumerate() {
+                            if let Some(item) = parse_line(line) {
+                                app.items.push(item);
+                            } else {
+                                warn!("Failed to parse line {}", i)
+                            }
                         }
                     }
-                };
-
-                block_on(future);
+                }
             }
 
             // Export button
@@ -74,14 +72,13 @@ pub(crate) fn show(ui: &mut egui::Ui, _frame: &mut eframe::Frame, app: &mut Temp
 
 fn parse_line(line: Result<String, std::io::Error>) -> Option<FinItem> {
     match line {
-        Ok(s) => {
-            if let Ok(item) = s.as_str().parse::<FinItem>() {
-                Some(item)
-            } else {
-                warn!("Failed to parse line");
+        Ok(s) => match s.as_str().parse::<FinItem>() {
+            Ok(item) => Some(item),
+            Err(_) => {
+                warn!("Failed to parse line. Error:");
                 None
             }
-        }
+        },
         Err(err) => {
             warn!("Failed to read line {}", err);
             None

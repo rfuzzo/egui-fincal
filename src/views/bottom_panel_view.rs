@@ -5,6 +5,8 @@ use crate::{common::to_name, model::FinItem, TemplateApp};
 pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &Vec<FinItem>) {
     let mut bars: Vec<Bar> = Vec::new();
     let mut dots: Vec<f64> = Vec::new();
+
+    // todo stacked bars
     for (cnt, item) in items_in_month.iter().enumerate() {
         bars.push(Bar::new(cnt as f64, item.price as f64).name(item.date.to_string()));
         dots.push(item.price as f64);

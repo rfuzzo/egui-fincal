@@ -4,7 +4,12 @@ use crate::{common::to_name, model::FinItem, TemplateApp};
 
 pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &[FinItem]) {
     // The central panel the region left after adding TopPanels and SidePanels
-    ui.heading(to_name(app.selected_month));
+    ui.heading(format!(
+        "{} {}",
+        to_name(app.selected_month),
+        app.selected_year
+    ));
+
     // main panel
     egui::ScrollArea::vertical().show(ui, |ui| {
         // Add item button
@@ -12,7 +17,7 @@ pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &[F
             app.items.push(FinItem {
                 date: chrono::offset::Local::now().date_naive(),
                 item: "item".to_string(),
-                category: "category".to_string(),
+                category: Some("category".to_string()),
                 price: 0.0,
                 owner: "MB".to_string(),
                 ratio: 0.5,
@@ -21,6 +26,7 @@ pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &[F
         }
 
         // main grid
+
         let mut to_remove: Option<&FinItem> = None;
         egui_extras::TableBuilder::new(ui)
             .striped(true)
@@ -71,12 +77,38 @@ pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &[F
                             table_row.col(|ui| {
                                 ui.text_edit_singleline(&mut row.item);
                             });
+
+                            // todo drop down
                             table_row.col(|ui| {
-                                ui.text_edit_singleline(&mut row.category);
+                                //ui.text_edit_singleline(&mut row.category);
+                                //let mut selected = &String::from("None");
+                                ui.push_id("totals_table", |ui| {
+                                    egui::ComboBox::from_id_source("Category")
+                                        .selected_text(
+                                            row.category.as_ref().unwrap_or(&"None".to_string()),
+                                        )
+                                        .show_ui(ui, |ui| {
+                                            let cats = &app.categories;
+                                            for c in cats.iter() {
+                                                let selected_value: Option<String> =
+                                                    Some(c.to_string());
+                                                ui.selectable_value(
+                                                    &mut row.category,
+                                                    selected_value,
+                                                    c,
+                                                );
+                                            }
+                                        });
+                                });
+
+                                //row.category = Some(selected.to_string());
                             });
+
                             table_row.col(|ui| {
                                 ui.add(egui::DragValue::new(&mut row.price).speed(0.1));
                             });
+
+                            // todo dropdown
                             table_row.col(|ui| {
                                 ui.text_edit_singleline(&mut row.owner);
                             });
@@ -91,7 +123,7 @@ pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &[F
                                 ui.label(&row.item);
                             });
                             table_row.col(|ui| {
-                                ui.label(&row.category);
+                                ui.label(row.category.as_ref().unwrap_or(&"None".to_string()));
                             });
                             table_row.col(|ui| {
                                 ui.label(&row.price.to_string());
@@ -116,9 +148,7 @@ pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &[F
                             if ui.add(egui::Button::new(edit_button_text)).clicked() {
                                 row.editable = !row.editable;
                             }
-                            //});
-                            // delete button
-                            //table_row.col(|ui| {
+
                             if ui.add(egui::Button::new("Delete")).clicked() {
                                 // get current index
                                 _ = to_remove.insert(row);
