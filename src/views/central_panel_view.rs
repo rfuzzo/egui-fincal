@@ -2,13 +2,44 @@ use egui_extras::Column;
 
 use crate::{common::to_name, model::FinItem, TemplateApp};
 
-pub(crate) fn show(ui: &mut egui::Ui, app: &mut TemplateApp, items_in_month: &[FinItem]) {
+pub(crate) fn show(
+    ui: &mut egui::Ui,
+    app: &mut TemplateApp,
+    items_in_month: &[FinItem],
+    possible_years: &[i32],
+) {
     // The central panel the region left after adding TopPanels and SidePanels
-    ui.heading(format!(
-        "{} {}",
-        to_name(app.selected_month),
-        app.selected_year
-    ));
+    ui.horizontal(|ui| {
+        if ui.button("<").clicked() {
+            if app.selected_month != 1 {
+                app.selected_month -= 1;
+            } else {
+                // decrease year if possible
+                if possible_years.contains(&(app.selected_year - 1)) {
+                    app.selected_year -= 1;
+                    app.selected_month = 12;
+                }
+            }
+        }
+
+        ui.heading(format!(
+            "{} {}",
+            to_name(app.selected_month),
+            app.selected_year
+        ));
+
+        if ui.button(">").clicked() {
+            if app.selected_month != 12 {
+                app.selected_month += 1;
+            } else {
+                // increase year if possible
+                if possible_years.contains(&(app.selected_year + 1)) {
+                    app.selected_year += 1;
+                    app.selected_month = 1;
+                }
+            }
+        }
+    });
 
     // main panel
     egui::ScrollArea::vertical().show(ui, |ui| {

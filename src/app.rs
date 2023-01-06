@@ -148,7 +148,7 @@ impl eframe::App for TemplateApp {
                     ui,
                     &mut *self,
                     &items_in_month,
-                    possible_years,
+                    &possible_years,
                     paid_dict,
                 );
             });
@@ -165,7 +165,7 @@ impl eframe::App for TemplateApp {
         ////////////////////////////////
         // central panel
         egui::CentralPanel::default().show(ctx, |ui| {
-            views::central_panel_view::show(ui, &mut *self, &items_in_month);
+            views::central_panel_view::show(ui, &mut *self, &items_in_month, &possible_years);
         });
     }
 

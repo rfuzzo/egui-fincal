@@ -12,7 +12,7 @@ pub(crate) fn show(
     ui: &mut egui::Ui,
     app: &mut TemplateApp,
     items_in_month: &[FinItem],
-    possible_years: Vec<i32>,
+    possible_years: &Vec<i32>,
     paid_dict: HashMap<String, (f32, f32)>,
 ) {
     ui.heading("Details");
